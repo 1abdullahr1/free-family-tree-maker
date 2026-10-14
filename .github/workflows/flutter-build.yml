@@ -19,7 +19,7 @@ jobs:
           cache: true
 
       - name: Ensure Android project
-        run: flutter create --platforms=android .
+        run: flutter create --platforms=android --project-name free_family_tree_maker .
 
       - name: Install dependencies
         run: flutter pub get
