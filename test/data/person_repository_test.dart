@@ -27,23 +27,23 @@ void main() {
     await people.addParentChild(treeId: tree.id, parentId: parent.id, childId: child.id);
     expect((await people.parentsOfPeople(child.id)).single.displayName, 'Parent');
     expect((await people.childrenOfPeople(parent.id)).single.displayName, 'Child');
-    expect(
-      () => people.addParentChild(treeId: tree.id, parentId: parent.id, childId: child.id),
+    await expectLater(
+      people.addParentChild(treeId: tree.id, parentId: parent.id, childId: child.id),
       throwsA(isA<RelationshipException>()),
     );
-    expect(
-      () => people.addParentChild(treeId: tree.id, parentId: child.id, childId: parent.id),
+    await expectLater(
+      people.addParentChild(treeId: tree.id, parentId: child.id, childId: parent.id),
       throwsA(isA<RelationshipException>()),
     );
-    expect(
-      () => people.addParentChild(treeId: tree.id, parentId: parent.id, childId: parent.id),
+    await expectLater(
+      people.addParentChild(treeId: tree.id, parentId: parent.id, childId: parent.id),
       throwsA(isA<RelationshipException>()),
     );
 
     await people.addPartner(treeId: tree.id, personAId: parent.id, personBId: partner.id);
     expect((await people.partnersOf(partner.id)).single.displayName, 'Parent');
-    expect(
-      () => people.addPartner(treeId: tree.id, personAId: partner.id, personBId: parent.id),
+    await expectLater(
+      people.addPartner(treeId: tree.id, personAId: partner.id, personBId: parent.id),
       throwsA(isA<RelationshipException>()),
     );
 
