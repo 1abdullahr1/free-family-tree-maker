@@ -20,7 +20,7 @@ class AppDatabase {
     final db = await _databaseFactory.openDatabase(
       path,
       options: sqflite.OpenDatabaseOptions(
-        version: 1,
+        version: 2,
         onConfigure: _onConfigure,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
@@ -64,6 +64,7 @@ class AppDatabase {
         death_day INTEGER,
         death_approximate INTEGER NOT NULL DEFAULT 0,
         death_place TEXT,
+        biography TEXT,
         notes TEXT,
         photo_path TEXT,
         created_at TEXT NOT NULL,
@@ -109,8 +110,8 @@ class AppDatabase {
   }
 
   Future<void> _onUpgrade(sqflite.Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 1) {
-      await _onCreate(db, newVersion);
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE persons ADD COLUMN biography TEXT');
     }
   }
 

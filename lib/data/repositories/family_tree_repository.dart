@@ -14,6 +14,8 @@ class FamilyTreeRepository {
   final _changes = StreamController<void>.broadcast();
   final _uuid = const Uuid();
 
+  AppDatabase get database => _database;
+
   Stream<List<FamilyTree>> watchTrees() async* {
     yield await listTrees();
     yield* _changes.stream.asyncMap((_) => listTrees());
