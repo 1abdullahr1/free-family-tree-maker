@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import '../../core/tree_layout.dart';
+import '../../data/backup/family_tree_backup.dart';
 import '../../data/repositories/person_repository.dart';
 import '../../models/person.dart';
 import '../trees/tree_list_screen.dart';
@@ -63,7 +65,11 @@ class _TreeWorkspaceScreenState extends ConsumerState<TreeWorkspaceScreen> {
             );
           }
           if (_tab == 1) return _PeopleTab(items: _filtered(items), onAdd: _addPerson, onSelect: _selectPerson);
-          return _MoreTab(treeName: tree?.name ?? 'Family tree');
+          return _MoreTab(
+            treeId: widget.treeId,
+            treeName: tree?.name ?? 'Family tree',
+            repository: ref.read(personRepositoryProvider(widget.treeId)),
+          );
         },
       ),
       floatingActionButton: _tab == 1
@@ -166,19 +172,67 @@ class _PeopleTab extends StatelessWidget {
 }
 
 class _MoreTab extends StatelessWidget {
-  const _MoreTab({required this.treeName});
+  const _MoreTab({required this.treeId, required this.treeName, required this.repository});
+  final String treeId;
   final String treeName;
+  final PersonRepository repository;
+
   @override
   Widget build(BuildContext context) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text(treeName, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 20),
-          const ListTile(leading: Icon(Icons.backup), title: Text('Backup & export'), subtitle: Text('Coming next: local backup and GEDCOM/PDF export')),
+          ListTile(
+            leading: const Icon(Icons.backup),
+            title: const Text('Backup & restore'),
+            subtitle: const Text('Copy a portable backup or restore one from the clipboard'),
+            onTap: () => _showBackup(context),
+          ),
           const ListTile(leading: Icon(Icons.lock_outline), title: Text('Privacy'), subtitle: Text('Your family data stays on this device.')),
           const ListTile(leading: Icon(Icons.palette_outlined), title: Text('Theme'), subtitle: Text('System theme is active')),
         ],
       );
+
+  Future<void> _showBackup(BuildContext context) async {
+    final service = FamilyTreeBackup(database: repository.database);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Wrap(children: [
+          ListTile(
+            leading: const Icon(Icons.copy),
+            title: const Text('Copy backup'),
+            subtitle: const Text('Copies a JSON backup to the clipboard.'),
+            onTap: () async {
+              final backup = await service.exportTree(treeId);
+              await Clipboard.setData(ClipboardData(text: backup));
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Backup copied to clipboard.')));
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.restore),
+            title: const Text('Restore from clipboard'),
+            onTap: () async {
+              final data = await Clipboard.getData(Clipboard.kTextPlain);
+              if (context.mounted) Navigator.pop(context);
+              if (data?.text == null) return;
+              try {
+                await service.restoreTree(data!.text!);
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Backup restored as a new family tree.')));
+              } on FamilyTreeBackupException catch (error) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+              }
+            },
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 class _TreeCanvas extends StatelessWidget {
