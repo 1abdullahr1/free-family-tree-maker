@@ -1,0 +1,4 @@
+Notes:
+- This is a compact, maintainable Flutter app skeleton for a local-only (SQLite) family tree maker.
+- Further improvements: add search, CSV import/export, nicer tree visualization, backup/restore, unit tests, CI, and Google Drive backup.
+- To generate a full Android project with Gradle configs and plugin files, run `flutter create .` on a machine with Flutter; this code assumes it's placed inside a Flutter project folder. Running `flutter create` will add proper android/ and ios/ folders if needed.

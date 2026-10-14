@@ -1,0 +1,11 @@
+# Flutter
+/.dart_tool/
+/.pub/
+/build/
+# Android
+**/android/local.properties
+**/android/.gradle
+# VS Code
+.vscode/
+# Others
+.DS_Store
