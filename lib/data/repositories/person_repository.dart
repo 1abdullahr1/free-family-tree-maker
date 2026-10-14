@@ -91,6 +91,42 @@ class PersonRepository {
     return (await getPerson(id))!;
   }
 
+  Future<Person> update({
+    required String id,
+    required String givenName,
+    String? middleName,
+    String? surname,
+    String? nickname,
+    String? gender,
+    String lifeStatus = 'unknown',
+    int? birthYear,
+    int? birthMonth,
+    int? birthDay,
+    String? birthPlace,
+    int? deathYear,
+    int? deathMonth,
+    int? deathDay,
+    String? deathPlace,
+    String? biography,
+    String? notes,
+  }) async {
+    final cleanGiven = _clean(givenName);
+    final cleanSurname = _clean(surname);
+    if (cleanGiven == null && cleanSurname == null) throw ArgumentError('Enter a given name or surname.');
+    if (birthYear != null && deathYear != null && deathYear < birthYear) throw ArgumentError('Death year cannot be earlier than birth year.');
+    final db = await database.database;
+    await db.update('persons', {
+      'given_name': cleanGiven, 'middle_name': _clean(middleName), 'surname': cleanSurname,
+      'nickname': _clean(nickname), 'gender': gender, 'life_status': lifeStatus,
+      'birth_year': birthYear, 'birth_month': birthMonth, 'birth_day': birthDay,
+      'birth_place': _clean(birthPlace), 'death_year': deathYear, 'death_month': deathMonth,
+      'death_day': deathDay, 'death_place': _clean(deathPlace), 'biography': _clean(biography),
+      'notes': _clean(notes), 'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, where: 'id = ?', whereArgs: [id]);
+    _notify();
+    return (await getPerson(id))!;
+  }
+
   Future<void> addParentChild({
     required String treeId,
     required String parentId,
@@ -104,61 +140,6 @@ class PersonRepository {
       throw const RelationshipException('Both people must belong to this family tree.');
     }
 
-    Future<Person> update({
-      required String id,
-      required String givenName,
-      String? middleName,
-      String? surname,
-      String? nickname,
-      String? gender,
-      String lifeStatus = 'unknown',
-      int? birthYear,
-      int? birthMonth,
-      int? birthDay,
-      String? birthPlace,
-      int? deathYear,
-      int? deathMonth,
-      int? deathDay,
-      String? deathPlace,
-      String? biography,
-      String? notes,
-    }) async {
-      final cleanGiven = _clean(givenName);
-      final cleanSurname = _clean(surname);
-      if (cleanGiven == null && cleanSurname == null) {
-        throw ArgumentError('Enter a given name or surname.');
-      }
-      if (birthYear != null && deathYear != null && deathYear < birthYear) {
-        throw ArgumentError('Death year cannot be earlier than birth year.');
-      }
-      final db = await database.database;
-      await db.update(
-        'persons',
-        {
-          'given_name': cleanGiven,
-          'middle_name': _clean(middleName),
-          'surname': cleanSurname,
-          'nickname': _clean(nickname),
-          'gender': gender,
-          'life_status': lifeStatus,
-          'birth_year': birthYear,
-          'birth_month': birthMonth,
-          'birth_day': birthDay,
-          'birth_place': _clean(birthPlace),
-          'death_year': deathYear,
-          'death_month': deathMonth,
-          'death_day': deathDay,
-          'death_place': _clean(deathPlace),
-          'biography': _clean(biography),
-          'notes': _clean(notes),
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-        },
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-      _notify();
-      return (await getPerson(id))!;
-    }
     final duplicate = await db.query('parent_child_relations', where: 'tree_id = ? AND parent_person_id = ? AND child_person_id = ?', whereArgs: [treeId, parentId, childId], limit: 1);
     if (duplicate.isNotEmpty) throw const RelationshipException('That parent-child relationship already exists.');
     if (await _wouldCreateCycle(db, parentId, childId)) {

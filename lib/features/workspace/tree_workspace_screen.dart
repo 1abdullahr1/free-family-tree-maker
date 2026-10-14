@@ -252,7 +252,7 @@ class _ConnectorPainter extends CustomPainter {
     final paint = Paint()..color = Colors.blueGrey.withOpacity(.35)..strokeWidth = 2;
     final y = 164.0;
     for (var x = 104.0; x < size.width - 86; x += 180) {
-      canvas.drawLine(104 + x - 104, y, x + 180 - 104, y, paint);
+      canvas.drawLine(Offset(x, y), Offset(x + 180, y), paint);
     }
   }
   @override
