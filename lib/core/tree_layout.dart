@@ -88,6 +88,21 @@ class TreeLayoutService {
     for (final person in people) {
       generation.putIfAbsent(person.id, () => 0);
     }
+    var partnerLevelsChanged = true;
+    while (partnerLevelsChanged) {
+      partnerLevelsChanged = false;
+      for (final relation in partnerRelations) {
+        final firstLevel = generation[relation.firstId];
+        final secondLevel = generation[relation.secondId];
+        if (firstLevel == null || secondLevel == null || firstLevel == secondLevel) continue;
+        final sharedLevel = firstLevel > secondLevel ? firstLevel : secondLevel;
+        if (firstLevel != sharedLevel || secondLevel != sharedLevel) {
+          generation[relation.firstId] = sharedLevel;
+          generation[relation.secondId] = sharedLevel;
+          partnerLevelsChanged = true;
+        }
+      }
+    }
 
     final levels = <int, List<Person>>{};
     for (final person in people) {
