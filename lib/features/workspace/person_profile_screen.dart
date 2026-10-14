@@ -67,14 +67,11 @@ class _PersonProfileScreenState extends ConsumerState<PersonProfileScreen> {
     final people = await repoForDialog.listPeople(widget.treeId);
     final otherPeople = people.where((item) => item.id != widget.person.id).toList();
     if (!mounted || otherPeople.isEmpty) return;
-    final selection = await showDialog<_RelationshipSelection>(
-      context: context,
-      builder: (context) => _RelationshipDialog(people: otherPeople),
-    );
+    final selection = await _chooseRelationship(otherPeople);
     if (selection == null) return;
     try {
       if (selection.kind == _RelationshipKind.parent) {
-        await repoForDialog.addParentChild( parentId: selection.person.id, childId: widget.person.id);
+        await repoForDialog.addParentChild(treeId: widget.treeId, parentId: selection.person.id, childId: widget.person.id);
       } else if (selection.kind == _RelationshipKind.child) {
         await repoForDialog.addParentChild(treeId: widget.treeId, parentId: widget.person.id, childId: selection.person.id);
       } else {
@@ -87,6 +84,13 @@ class _PersonProfileScreenState extends ConsumerState<PersonProfileScreen> {
   }
 
   PersonRepository get repoForDialog => ref.read(personRepositoryProvider(widget.treeId));
+
+  Future<_RelationshipSelection?> _chooseRelationship(List<Person> people) {
+    return showDialog<_RelationshipSelection>(
+      context: context,
+      builder: (context) => _RelationshipDialog(people: people),
+    );
+  }
 }
 
 class _Relationships extends StatelessWidget {
