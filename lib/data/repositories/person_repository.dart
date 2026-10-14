@@ -169,6 +169,75 @@ class PersonRepository {
     return rows.map((row) => row['child_person_id'] as String).toList();
   }
 
+  Future<List<Person>> parentsOfPeople(String personId) async {
+    return _peopleByIds(await parentsOf(personId));
+  }
+
+  Future<List<Person>> childrenOfPeople(String personId) async {
+    return _peopleByIds(await childrenOf(personId));
+  }
+
+  Future<List<Person>> partnersOf(String personId) async {
+    final db = await database.database;
+    final rows = await db.query(
+      'partner_relations',
+      where: 'person_a_id = ? OR person_b_id = ?',
+      whereArgs: [personId, personId],
+    );
+    final ids = rows.map((row) {
+      final first = row['person_a_id'] as String;
+      final second = row['person_b_id'] as String;
+      return first == personId ? second : first;
+    }).toList();
+    return _peopleByIds(ids);
+  }
+
+  Future<void> addPartner({
+    required String treeId,
+    required String personAId,
+    required String personBId,
+    String partnershipType = 'partner',
+    String status = 'unknown',
+  }) async {
+    if (personAId == personBId) {
+      throw const RelationshipException('A person cannot be their own partner.');
+    }
+    final db = await database.database;
+    final people = await db.query(
+      'persons',
+      columns: ['id', 'tree_id'],
+      where: 'id IN (?, ?)',
+      whereArgs: [personAId, personBId],
+    );
+    if (people.length != 2 || people.any((row) => row['tree_id'] != treeId)) {
+      throw const RelationshipException('Both people must belong to this family tree.');
+    }
+    final duplicate = await db.query(
+      'partner_relations',
+      where: '''tree_id = ? AND
+          ((person_a_id = ? AND person_b_id = ?) OR
+           (person_a_id = ? AND person_b_id = ?))''',
+      whereArgs: [treeId, personAId, personBId, personBId, personAId],
+      limit: 1,
+    );
+    if (duplicate.isNotEmpty) {
+      throw const RelationshipException('That partner relationship already exists.');
+    }
+    final now = DateTime.now().toUtc().toIso8601String();
+    await db.insert('partner_relations', {
+      'id': _uuid.v4(),
+      'tree_id': treeId,
+      'person_a_id': personAId,
+      'person_b_id': personBId,
+      'partnership_type': partnershipType,
+      'status': status,
+      'created_at': now,
+      'updated_at': now,
+    });
+    await db.update('family_trees', {'updated_at': now}, where: 'id = ?', whereArgs: [treeId]);
+    _notify();
+  }
+
   Future<List<Person>> search(String treeId, String query) async {
     final people = await listPeople(treeId);
     final q = query.trim().toLowerCase();
@@ -206,5 +275,19 @@ class PersonRepository {
 
   Future<void> dispose() async {
     await _changes.close();
+  }
+
+  Future<List<Person>> _peopleByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final db = await database.database;
+    final placeholders = List.filled(ids.length, '?').join(', ');
+    final rows = await db.query(
+      'persons',
+      where: 'id IN ($placeholders)',
+      whereArgs: ids,
+    );
+    final people = rows.map(Person.fromMap).toList();
+    final byId = {for (final person in people) person.id: person};
+    return ids.map((id) => byId[id]).whereType<Person>().toList();
   }
 }
