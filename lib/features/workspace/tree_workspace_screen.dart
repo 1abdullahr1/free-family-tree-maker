@@ -250,7 +250,7 @@ class _ConnectorPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.blueGrey.withOpacity(.35)..strokeWidth = 2;
-    final y = 164.0;
+    const y = 164.0;
     for (var x = 104.0; x < size.width - 86; x += 180) {
       canvas.drawLine(Offset(x, y), Offset(x + 180, y), paint);
     }
