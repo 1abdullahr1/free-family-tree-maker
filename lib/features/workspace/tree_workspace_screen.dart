@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/tree_layout.dart';
 import '../../data/repositories/person_repository.dart';
 import '../../models/person.dart';
 import '../trees/tree_list_screen.dart';
@@ -52,7 +53,15 @@ class _TreeWorkspaceScreenState extends ConsumerState<TreeWorkspaceScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Could not load people.\n$error')),
         data: (items) {
-          if (_tab == 0) return _TreeCanvas(items: items, focusId: _focusId, onSelect: _selectPerson);
+          if (_tab == 0) {
+            return _TreeCanvas(
+              treeId: widget.treeId,
+              items: items,
+              repository: ref.read(personRepositoryProvider(widget.treeId)),
+              focusId: _focusId,
+              onSelect: _selectPerson,
+            );
+          }
           if (_tab == 1) return _PeopleTab(items: _filtered(items), onAdd: _addPerson, onSelect: _selectPerson);
           return _MoreTab(treeName: tree?.name ?? 'Family tree');
         },
@@ -173,33 +182,57 @@ class _MoreTab extends StatelessWidget {
 }
 
 class _TreeCanvas extends StatelessWidget {
-  const _TreeCanvas({required this.items, required this.focusId, required this.onSelect});
+  const _TreeCanvas({
+    required this.treeId,
+    required this.items,
+    required this.repository,
+    required this.focusId,
+    required this.onSelect,
+  });
+  final String treeId;
   final List<Person> items;
+  final PersonRepository repository;
   final String? focusId;
   final ValueChanged<Person> onSelect;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => FutureBuilder<List<List<PersonRelation>>>(
+        future: Future.wait([repository.parentChildRelations(treeId), repository.partnerRelations(treeId)]),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          return _buildCanvas(context, snapshot.data![0], snapshot.data![1]);
+        },
+      );
+
+  Widget _buildCanvas(
+    BuildContext context,
+    List<PersonRelation> parentChildRelations,
+    List<PersonRelation> partnerRelations,
+  ) {
     if (items.isEmpty) {
       return Center(child: Text('Add people to begin your family tree.', style: Theme.of(context).textTheme.titleMedium));
     }
-    final columns = <List<Person>>[items];
+    final layout = const TreeLayoutService().layout(
+      people: items,
+      parentChildRelations: parentChildRelations,
+      partnerRelations: partnerRelations,
+    );
     return InteractiveViewer(
       constrained: false,
       minScale: .35,
       maxScale: 2.5,
       boundaryMargin: const EdgeInsets.all(240),
       child: SizedBox(
-        width: (columns.first.length * 190).clamp(360, 2400).toDouble(),
-        height: 360,
+        width: layout.width.clamp(360, 2400).toDouble(),
+        height: layout.height,
         child: Stack(
           children: [
-            Positioned.fill(child: CustomPaint(painter: _ConnectorPainter())),
-            for (var index = 0; index < items.length; index++)
+            Positioned.fill(child: CustomPaint(painter: _ConnectorPainter(layout: layout))),
+            for (final node in layout.nodes)
               Positioned(
-                left: 20 + (index * 180),
-                top: 120,
-                child: _NodeCard(person: items[index], selected: items[index].id == focusId, onTap: () => onSelect(items[index])),
+                left: node.position.x,
+                top: node.position.y,
+                child: _NodeCard(person: node.person, selected: node.person.id == focusId, onTap: () => onSelect(node.person)),
               ),
             Positioned(
               right: 18,
@@ -208,8 +241,7 @@ class _TreeCanvas extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -247,16 +279,43 @@ class _NodeCard extends StatelessWidget {
 }
 
 class _ConnectorPainter extends CustomPainter {
+  const _ConnectorPainter({required this.layout});
+  final TreeLayout layout;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.blueGrey.withOpacity(.35)..strokeWidth = 2;
-    const y = 164.0;
-    for (var x = 104.0; x < size.width - 86; x += 180) {
-      canvas.drawLine(Offset(x, y), Offset(x + 180, y), paint);
+    final parentPaint = Paint()
+      ..color = Colors.blueGrey.withOpacity(.45)
+      ..strokeWidth = 2;
+    final partnerPaint = Paint()
+      ..color = Colors.pinkAccent.withOpacity(.55)
+      ..strokeWidth = 2.5;
+    final positions = {for (final node in layout.nodes) node.person.id: node.position};
+    for (final edge in layout.edges) {
+      final first = positions[edge.firstId];
+      final second = positions[edge.secondId];
+      if (first == null || second == null) continue;
+      final paint = edge.type == TreeEdgeType.partner ? partnerPaint : parentPaint;
+      final firstCenter = Offset(first.x + 84, first.y + 64);
+      final secondCenter = Offset(second.x + 84, second.y + 64);
+      if (edge.type == TreeEdgeType.partner) {
+        canvas.drawLine(firstCenter, secondCenter, paint);
+      } else {
+        final start = Offset(firstCenter.dx, first.y < second.y ? first.y + 128 : first.y);
+        final end = Offset(secondCenter.dx, first.y < second.y ? second.y : second.y + 128);
+        final middleY = (start.dy + end.dy) / 2;
+        final path = Path()
+          ..moveTo(start.dx, start.dy)
+          ..lineTo(start.dx, middleY)
+          ..lineTo(end.dx, middleY)
+          ..lineTo(end.dx, end.dy);
+        canvas.drawPath(path, paint);
+      }
     }
   }
+
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ConnectorPainter oldDelegate) => oldDelegate.layout != layout;
 }
 
 extension _FirstOrNull<E> on Iterable<E> {

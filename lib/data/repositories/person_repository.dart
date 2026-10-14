@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../models/person.dart';
+import '../../core/tree_layout.dart';
 import '../database/app_database.dart';
 
 class RelationshipException implements Exception {
@@ -175,6 +176,38 @@ class PersonRepository {
 
   Future<List<Person>> childrenOfPeople(String personId) async {
     return _peopleByIds(await childrenOf(personId));
+  }
+
+  Future<List<PersonRelation>> parentChildRelations(String treeId) async {
+    final db = await database.database;
+    final rows = await db.query(
+      'parent_child_relations',
+      columns: ['parent_person_id', 'child_person_id'],
+      where: 'tree_id = ?',
+      whereArgs: [treeId],
+    );
+    return rows
+        .map((row) => PersonRelation(
+              firstId: row['parent_person_id'] as String,
+              secondId: row['child_person_id'] as String,
+            ))
+        .toList();
+  }
+
+  Future<List<PersonRelation>> partnerRelations(String treeId) async {
+    final db = await database.database;
+    final rows = await db.query(
+      'partner_relations',
+      columns: ['person_a_id', 'person_b_id'],
+      where: 'tree_id = ?',
+      whereArgs: [treeId],
+    );
+    return rows
+        .map((row) => PersonRelation(
+              firstId: row['person_a_id'] as String,
+              secondId: row['person_b_id'] as String,
+            ))
+        .toList();
   }
 
   Future<List<Person>> partnersOf(String personId) async {
