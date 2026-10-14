@@ -4,6 +4,8 @@ Build instructions (Windows):
 2. Ensure ANDROID_HOME and PATH configured for sdk/platform-tools and flutter bin
 3. In project root, run:
    flutter pub get
+   flutter analyze
+   flutter test
    flutter build apk --release
 
 The release APK will be at: build\app\outputs\flutter-apk\app-release.apk

@@ -1,6 +1,13 @@
 Free Family Tree Maker
 
-A small, beautiful Flutter app demonstrating a local-only family tree maker using SQLite (sqflite). Includes add/list/detail screens and offline storage.
+A calm, offline-first Flutter family tree app foundation. Milestone 1 includes:
+
+- multiple local family trees
+- create, rename, and delete trees
+- SQLite persistence
+- Riverpod state management
+- go_router navigation
+- a tree workspace shell ready for later milestones
 
 To build & run:
 1. Install Flutter: https://flutter.dev/docs/get-started/install
@@ -10,5 +17,5 @@ To build & run:
 5. Build APK: flutter build apk --release
 
 Notes:
-- Local-only app: all data stored in SQLite.
-- Uses Provider for state management.
+- Local-only app: all data stays on device in SQLite.
+- CI builds the APK and runs analysis/tests in GitHub Actions.
