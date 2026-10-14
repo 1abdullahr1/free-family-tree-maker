@@ -241,7 +241,8 @@ class _TreeCanvas extends StatelessWidget {
             ),
           ],
         ),
-      );
+      ),
+    );
   }
 }
 
